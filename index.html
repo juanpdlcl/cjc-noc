@@ -228,22 +228,28 @@ function resize(){
 }
 window.addEventListener('resize', resize); resize();
 
-/* cámara — funciones continuas de t → loop infinito sin cortes */
-let cam = {cy:1,sy:0,cp:1,sp:0,dist:1000,zoom:1};
-function camera(t){
-  const yaw   = Math.sin(t*0.047)*0.16;
-  const pitch = 0.60 + Math.sin(t*0.031)*0.04;    /* mesa holográfica ~34° */
-  const dist  = 1230 + Math.sin(t*0.019)*60;      /* respiración */
+/* cámara — funciones continuas de t → loop infinito sin cortes.
+   Durante el tour (fase 3) el objetivo y el zoom se interpolan entre provincias */
+let cam = {cy:1,sy:0,cp:1,sp:0,dist:1000,tx:0,tz:0};
+const TOURF = {idx:-1, amt:0};       /* provincia enfocada + intensidad */
+function camera(t,tc){
+  const yaw   = Math.sin(t*0.047)*0.24;           /* órbita más amplia */
+  const pitch = 0.60 + Math.sin(t*0.031)*0.06;
+  let  dist   = 1230 + Math.sin(t*0.019)*85;      /* respiración */
+  const tr = tourAt(tc);
+  cam.tx=tr.x; cam.tz=tr.z; dist/=tr.k;
+  TOURF.idx=tr.idx; TOURF.amt=tr.amt;
   cam.cy=Math.cos(yaw); cam.sy=Math.sin(yaw);
   cam.cp=Math.cos(pitch); cam.sp=Math.sin(pitch);
   cam.dist=dist;
 }
 /* mundo: x→derecha, z→sur, y→arriba. Devuelve [sx,sy,escala] */
 function P(x,y,z){
-  const xr =  x*cam.cy + z*cam.sy;
-  const zr = -x*cam.sy + z*cam.cy;
+  const dx = x-cam.tx, dz = z-cam.tz;
+  const xr =  dx*cam.cy + dz*cam.sy;
+  const zr = -dx*cam.sy + dz*cam.cy;
   const yv = y*cam.cp - zr*cam.sp;
-  const zv = cam.dist - (y*cam.sp + zr*cam.cp);
+  const zv = Math.max(50, cam.dist - (y*cam.sp + zr*cam.cp)); /* nunca detrás de la cámara */
   const s = FOC/zv;
   return [CX + xr*s, CY - yv*s, s];
 }
@@ -282,14 +288,43 @@ function geo(la,lo){ /* lat/lon → espacio de mapa centrado, calibrado al trazo
 const NODES = CITIES.map(c=>{ const [x,z]=geo(c.la,c.lo); return {...c,x,z}; });
 const HUB = NODES[0];
 
+/* ======= tour: zoom entre provincias (fase 3 del ciclo) ======= */
+const TSTOPS=['Santiago','La Altagracia','Distrito Nacional'].map(n=>{
+  const i=Math.max(0,PROV.findIndex(p=>p.name===n));
+  return {i, x:PROV[i].cx, z:PROV[i].cz};
+});
+const ZK=1.9;                        /* factor de acercamiento */
+const TKEY=[
+  {t:26.0, x:0,          z:0,          k:1},
+  {t:29.2, x:TSTOPS[0].x, z:TSTOPS[0].z, k:ZK},
+  {t:32.8, x:TSTOPS[0].x, z:TSTOPS[0].z, k:ZK},
+  {t:35.4, x:TSTOPS[1].x, z:TSTOPS[1].z, k:ZK},
+  {t:39.0, x:TSTOPS[1].x, z:TSTOPS[1].z, k:ZK},
+  {t:41.6, x:TSTOPS[2].x, z:TSTOPS[2].z, k:ZK},
+  {t:45.2, x:TSTOPS[2].x, z:TSTOPS[2].z, k:ZK},
+  {t:48.6, x:0,          z:0,          k:1}
+];
+function tourAt(tc){
+  const last=TKEY[TKEY.length-1];
+  if(tc<=TKEY[0].t || tc>=last.t) return {x:0,z:0,k:1,idx:-1,amt:0};
+  let a=TKEY[0], b=TKEY[1];
+  for(let i=1;i<TKEY.length;i++){ if(tc<=TKEY[i].t){ a=TKEY[i-1]; b=TKEY[i]; break; } }
+  const u=(tc-a.t)/(b.t-a.t), e=u*u*(3-2*u);
+  const x=a.x+(b.x-a.x)*e, z=a.z+(b.z-a.z)*e, k=a.k+(b.k-a.k)*e;
+  let idx=-1, best=Infinity;
+  for(const st of TSTOPS){ const d=(st.x-x)*(st.x-x)+(st.z-z)*(st.z-z); if(d<best){best=d; idx=st.i;} }
+  const amt=Math.max(0,Math.min(1,(k-1)/(ZK-1)));
+  return {x,z,k,idx:amt>0.05?idx:-1,amt};
+}
+
 /* ============================================================
    RENDER
    ============================================================ */
 const TAU = Math.PI*2;
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/* ======= ciclo maestro: entrada → crucero → disolución ======= */
-const CYC = 48;                                   /* segundos por ciclo */
+/* ======= ciclo maestro: entrada → crucero → tour zoom → crucero → disolución ======= */
+const CYC = 76;                                   /* segundos por ciclo */
 const sm = x => x<=0?0:x>=1?1:x*x*(3-2*x);        /* smoothstep */
 const RANK=(()=>{                                  /* orden oeste→este */
   const idx=PROV.map((_,i)=>i).sort((a,b)=>PROV[a].cx-PROV[b].cx);
@@ -501,6 +536,34 @@ function drawMap(t,tc,paths,entr){
       ctx.strokeStyle=`rgba(160,220,255,${(b*0.4).toFixed(3)})`;
       ctx.lineWidth=1.1; ctx.stroke(each[pj]);
     }
+  }
+
+  /* provincia enfocada durante el tour con zoom */
+  if(TOURF.amt>0.05 && TOURF.idx>=0){
+    const fa=TOURF.amt, fi=TOURF.idx;
+    ctx.fillStyle=`rgba(51,196,255,${(0.13*fa).toFixed(3)})`; ctx.fill(each[fi]);
+    ctx.strokeStyle=`rgba(200,240,255,${(0.55*fa).toFixed(3)})`;
+    ctx.lineWidth=1.7; ctx.stroke(each[fi]);
+    /* chispa recorriendo el contorno de la provincia enfocada */
+    const ring=PROV[fi].big, n=ring.length/2, TRL=20;
+    const u2=(t*0.5)%1;
+    ctx.lineWidth=1.9; let pv=null;
+    for(let j=TRL;j>=0;j--){
+      const idx=((Math.floor(u2*n)-j)%n+n)%n;
+      const p=P(ring[idx*2],0,ring[idx*2+1]);
+      if(pv){
+        const al=(1-j/TRL)*0.9*fa;
+        ctx.strokeStyle=`rgba(225,246,255,${al.toFixed(3)})`;
+        ctx.beginPath(); ctx.moveTo(pv[0],pv[1]); ctx.lineTo(p[0],p[1]); ctx.stroke();
+      }
+      pv=p;
+    }
+    if(pv){ ctx.fillStyle=`rgba(235,250,255,${(0.95*fa).toFixed(3)})`;
+      ctx.beginPath(); ctx.arc(pv[0],pv[1],2.2,0,TAU); ctx.fill(); }
+    /* anillo expandiéndose en el centroide */
+    const ur=(t*0.7)%1;
+    ctx.lineWidth=1.4;
+    nodeRing(PROV[fi].cx,PROV[fi].cz,8+ur*62,(1-ur)*0.5*fa);
   }
 
   /* gradiente de profundidad — lejos más oscuro */
@@ -770,11 +833,13 @@ function frame(now){
   rafQueued=false;
   const t=now/1000, tc=t%CYC;
   ctx.clearRect(0,0,W,H);
-  camera(t);
+  camera(t,tc);
   /* alfa maestro: disolución al final del ciclo → reinicio limpio */
   const M = 1 - sm((tc-(CYC-2.4))/2.0);
   const gIn = sm(tc/1.6);
-  ctx.globalAlpha = M*gIn;
+  /* el campo lejano se desvanece durante el zoom del tour */
+  const zf = 1 - TOURF.amt*0.85;
+  ctx.globalAlpha = M*gIn*zf;
   drawGrid(t);
   drawGlow();
   drawOrbits(t);
@@ -787,7 +852,7 @@ function frame(now){
   drawArcs(t,tc);
   drawNodes(t,tc);
   drawLabels(t,tc);
-  ctx.globalAlpha = M*gIn;
+  ctx.globalAlpha = M*gIn*zf;
   drawParticles(t);
   drawMeteors(t);
   ctx.globalAlpha = 1;
