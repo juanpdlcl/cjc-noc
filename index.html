@@ -45,27 +45,29 @@
     z-index:8;display:flex;flex-direction:column;align-items:center;gap:1.6vh;
     pointer-events:none;text-align:center}
   #brand img{
-    width:min(30vw,360px);height:auto;display:block;
-    filter:drop-shadow(0 0 26px rgba(51,196,255,.22));
-    animation:glint 12s ease-in-out infinite, lev 9s ease-in-out infinite;
+    width:clamp(220px, min(28vw, 34vmin), 900px);height:auto;display:block;
+    filter:drop-shadow(0 0 26px rgba(51,196,255,.22)); /* estático: animar filter congela GPUs débiles */
+    animation:lev 9s ease-in-out infinite;
+    position:relative;z-index:1;
   }
   @keyframes lev{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
-  @keyframes glint{
-    0%,88%,100%{filter:drop-shadow(0 0 26px rgba(51,196,255,.22)) brightness(1)}
-    92%{filter:drop-shadow(0 0 42px rgba(51,196,255,.55)) brightness(1.28)}
-    96%{filter:drop-shadow(0 0 30px rgba(51,196,255,.3)) brightness(1.04)}
-  }
-  #brand .sub{display:flex;align-items:center;gap:16px;width:min(40vw,470px)}
+  /* destello barato: solo opacidad de un halo detrás del logo */
+  #brand::before{content:'';position:absolute;top:-6%;left:50%;
+    transform:translateX(-50%);width:76%;height:58%;z-index:0;pointer-events:none;
+    background:radial-gradient(50% 50% at 50% 50%, rgba(51,196,255,.30), transparent 72%);
+    animation:glowp 12s ease-in-out infinite}
+  @keyframes glowp{0%,86%,100%{opacity:.35}92%{opacity:1}}
+  #brand .sub{display:flex;align-items:center;gap:16px;width:min(38vw,52vmin)}
   #brand .sub .rule{flex:1;height:1px;
     background:linear-gradient(90deg,transparent,rgba(51,196,255,.55))}
   #brand .sub .rule:last-child{transform:scaleX(-1)}
   #brand .sub span{
-    font-family:var(--mono);font-size:clamp(9px,1.15vw,13px);font-weight:500;
+    font-family:var(--mono);font-size:clamp(9px,1.35vmin,26px);font-weight:500;
     letter-spacing:.46em;text-indent:.46em;white-space:nowrap;
     color:rgba(160,216,255,.85)}
 
   /* ---------- HUD corners ---------- */
-  .corner{position:absolute;width:34px;height:34px;z-index:7;
+  .corner{position:absolute;width:clamp(28px,3vmin,64px);height:clamp(28px,3vmin,64px);z-index:7;
     border:0 solid rgba(51,196,255,.4);animation:cornerpulse 5s ease-in-out infinite}
   @keyframes cornerpulse{0%,100%{opacity:.55}50%{opacity:1}}
   .corner.tl{top:18px;left:18px;border-top-width:2px;border-left-width:2px}
@@ -74,50 +76,51 @@
   .corner.br{bottom:18px;right:18px;border-bottom-width:2px;border-right-width:2px}
 
   .hud{position:absolute;z-index:7;font-family:var(--mono);
-    font-size:clamp(9px,.95vw,12px);letter-spacing:.22em;color:rgba(150,205,250,.75);
+    font-size:clamp(9px,1.15vmin,22px);letter-spacing:.22em;color:rgba(150,205,250,.75);
     display:flex;align-items:center;gap:10px;white-space:nowrap}
-  .hud .dot{width:7px;height:7px;border-radius:50%;background:var(--good);
+  .hud .dot{width:clamp(7px,.8vmin,14px);height:clamp(7px,.8vmin,14px);border-radius:50%;background:var(--good);
     box-shadow:0 0 8px var(--good);animation:pulse 2.4s ease-in-out infinite}
-  #hud-tl{top:26px;left:66px}
+  #hud-tl{top:clamp(20px,2.4vmin,48px);left:clamp(40px,4vw,120px)}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
 
   /* ---------- bottom telemetry bar ---------- */
   #bar{position:absolute;left:0;right:0;bottom:0;height:9.5vh;min-height:64px;z-index:8;
     display:grid;grid-template-columns:auto 1fr auto;align-items:center;
-    gap:3vw;padding:0 66px 1.2vh;
+    gap:3vw;padding:0 clamp(24px,4vw,120px) 1.2vh;
     background:linear-gradient(180deg,transparent,rgba(3,9,20,.82) 55%)}
   /* reloj — posición estratégica: esquina superior derecha, siempre visible */
-  #clock{position:absolute;top:22px;right:66px;z-index:8;
+  #clock{position:absolute;top:clamp(16px,2.2vmin,42px);right:clamp(40px,4vw,120px);z-index:8;
     display:flex;flex-direction:column;align-items:flex-end;gap:3px;
     font-family:var(--mono);text-align:right}
-  #clock .time{font-size:clamp(20px,2.5vw,36px);font-weight:300;
+  #clock .time{font-size:clamp(18px,3.4vmin,68px);font-weight:300;
     font-variant-numeric:tabular-nums;letter-spacing:.06em;color:var(--white);
     line-height:1;text-shadow:0 0 18px rgba(51,196,255,.35)}
   #clock .time b{font-weight:300;color:var(--cyan);animation:pulse 1s steps(1) infinite}
-  #clock .date{font-size:clamp(8px,.85vw,11px);letter-spacing:.28em;white-space:nowrap;
+  #clock .date{font-size:clamp(8px,1.1vmin,20px);letter-spacing:.28em;white-space:nowrap;
     color:rgba(150,205,250,.7);text-transform:uppercase}
-  #bar-label{font-family:var(--mono);font-size:clamp(9px,.95vw,12px);
+  #bar-label{font-family:var(--mono);font-size:clamp(9px,1.05vmin,20px);
     letter-spacing:.22em;color:rgba(150,205,250,.7);white-space:nowrap}
 
   /* ecualizador de telemetría — animación pura, sin palabras */
-  #wave{height:100%;display:flex;align-items:center;justify-content:center;gap:4px}
-  #wave i{width:2px;height:24px;border-radius:1px;background:rgba(80,180,255,.5);
+  #wave{height:100%;display:flex;align-items:center;justify-content:center;gap:clamp(3px,.4vmin,8px)}
+  #wave i{width:clamp(2px,.24vmin,5px);height:clamp(16px,2.6vmin,48px);border-radius:1px;
+    background:rgba(80,180,255,.5);
     transform-origin:center;animation:eq 1.2s ease-in-out infinite alternate}
   #wave i.o{background:rgba(255,140,40,.7)}
   @keyframes eq{from{transform:scaleY(.14)}to{transform:scaleY(1)}}
 
   #status{display:flex;gap:2.2vw;align-items:center}
   .chip{display:flex;flex-direction:column;gap:5px;font-family:var(--mono)}
-  .chip .k{font-size:clamp(8px,.8vw,10px);letter-spacing:.3em;color:rgba(150,205,250,.55)}
-  .chip .v{font-size:clamp(11px,1.15vw,15px);letter-spacing:.14em;color:var(--white);
+  .chip .k{font-size:clamp(8px,.9vmin,17px);letter-spacing:.3em;color:rgba(150,205,250,.55)}
+  .chip .v{font-size:clamp(11px,1.35vmin,26px);letter-spacing:.14em;color:var(--white);
     display:flex;align-items:center;gap:8px}
-  .chip .v .dot{width:8px;height:8px;border-radius:50%;background:var(--good);
+  .chip .v .dot{width:clamp(8px,.9vmin,16px);height:clamp(8px,.9vmin,16px);border-radius:50%;background:var(--good);
     box-shadow:0 0 10px var(--good);animation:pulse 2.4s ease-in-out infinite}
   .chip .v .dot.c{background:var(--cyan);box-shadow:0 0 10px var(--cyan)}
 
   /* ---------- side labels ---------- */
   .side{position:absolute;top:50%;z-index:7;font-family:var(--mono);
-    font-size:clamp(8px,.8vw,10px);letter-spacing:.5em;color:rgba(120,180,235,.4);
+    font-size:clamp(8px,.95vmin,18px);letter-spacing:.5em;color:rgba(120,180,235,.4);
     white-space:nowrap;pointer-events:none}
   .side.l{left:26px;transform:translateY(-50%) rotate(180deg);writing-mode:vertical-rl}
   .side.r{right:26px;transform:translateY(-50%);writing-mode:vertical-rl}
@@ -128,6 +131,12 @@
   body.idle #hint{opacity:0}
 
   /* ventanas estrechas: se conserva lo esencial */
+  /* modo calidad baja (gobernador automático o ?calidad=baja) */
+  body.q2 #scanlines{display:none}
+  body.q2 #wave i:nth-child(2n){display:none}
+  body.q2 .corner{animation:none}
+  body.q2 #brand::before{animation:none;opacity:.35}
+
   @media (max-width: 900px){
     .side,#hint,#hud-tl,#status,#bar-label{display:none}
     #bar{grid-template-columns:1fr;gap:0;padding:0 24px 1vh}
@@ -214,14 +223,43 @@ const ARC_TARGETS = [1,2,3,5,7,8,12,13,15,9]; // índices con arco desde el hub
 /* ============================================================
    PROYECCIÓN 3D — mesa holográfica
    ============================================================ */
+/* ======= gobernador de calidad ======================================
+   Si el equipo no sostiene ~30 fps (p.ej. el WebView del reproductor LED),
+   baja automáticamente de nivel. Forzable con ?calidad=media|baja ======= */
+const QCFG=[
+  {part:150,seg:56,grid:70, cross:70,wedge2:true, depth:true, scan:true, minFrame:0},
+  {part:90, seg:36,grid:105,cross:40,wedge2:false,depth:true, scan:true, minFrame:33},
+  {part:50, seg:24,grid:140,cross:20,wedge2:false,depth:false,scan:false,minFrame:33}
+];
+const QMUL=[1,.85,.72];
+let QL=0;
+try{
+  const qp=new URLSearchParams(location.search).get('calidad');
+  if(qp==='baja')QL=2; else if(qp==='media')QL=1;
+}catch(e){}
+let ftAvg=16.7, qWarm=0, lastTS=0, lastDraw=-1e9;
+function govern(now){
+  if(lastTS){ const dt=now-lastTS; if(dt<500) ftAvg=ftAvg*0.94+dt*0.06; }
+  lastTS=now;
+  if(++qWarm>180 && ftAvg>40 && QL<2){
+    QL++; qWarm=0; ftAvg=25;
+    document.body.classList.toggle('q2', QL===2);
+    resize();
+  }
+}
+if(QL===2) document.addEventListener('DOMContentLoaded',()=>document.body.classList.add('q2'));
+
 const cv = document.getElementById('scene');
 const ctx = cv.getContext('2d');
 let W=0,H=0,DPR=1,CX=0,CY=0,FOC=900;
 
 function resize(){
-  DPR = Math.min(window.devicePixelRatio||1, 2);
   W = window.innerWidth; H = window.innerHeight;
-  cv.width = W*DPR; cv.height = H*DPR;
+  /* presupuesto de píxeles: pantallas enormes (LED 2688×864, 4K) bajan DPR
+     para que el canvas nunca pase de ~3.6 Mpx; la calidad baja lo reduce más */
+  const budget = Math.max(1, Math.sqrt(3.6e6/(W*H)));
+  DPR = Math.max(0.7, Math.min(window.devicePixelRatio||1, 2, budget)*QMUL[QL]);
+  cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR);
   ctx.setTransform(DPR,0,0,DPR,0,0);
   CX = W*0.5; CY = H*0.565;
   FOC = W<700 ? W*1.16 : Math.min(W*0.94, H*1.56);
@@ -267,7 +305,17 @@ const PROV = MAP.provinces.map(p=>{
     if(c==='M'){ cur=[]; rings.push(cur); cur.push(+tok[++i],+tok[++i]); }
     else if(c==='L'){ cur.push(+tok[++i],+tok[++i]); }
   }
-  const R=rings.map(r=>{ const a=new Float64Array(r);
+  /* decimación: quita vértices a <2.2 unidades — invisible a esta escala,
+     pero reduce mucho el costo de proyección y clip por fotograma */
+  const dec=rings.map(r=>{
+    const o=[r[0],r[1]]; let lx=r[0], ly=r[1];
+    for(let i=2;i<r.length;i+=2){
+      const dx=r[i]-lx, dy=r[i+1]-ly;
+      if(dx*dx+dy*dy>=4.84){ o.push(r[i],r[i+1]); lx=r[i]; ly=r[i+1]; }
+    }
+    return o;
+  });
+  const R=dec.map(r=>{ const a=new Float64Array(r);
     for(let i=0;i<a.length;i+=2){a[i]-=500;a[i+1]-=325;} return a; });
   const big=R.reduce((m,r)=>r.length>m.length?r:m,R[0]); /* contorno principal */
   return {name:p.name, cx:p.cx-500, cz:p.cy-325, rings:R, big};
@@ -354,30 +402,38 @@ const CROSSES=(function(){
 })();
 
 function drawGrid(t){
+  const Q=QCFG[QL], st=Q.grid, useGrad=QL===0;
   ctx.lineWidth=1;
-  const off=(t*6)%70;              /* deriva lenta del suelo */
-  for(let gx=-770+off;gx<=770;gx+=70){
+  const off=(t*6)%st;              /* deriva lenta del suelo */
+  for(let gx=-770+off;gx<=770;gx+=st){
     const a=P(gx,0,-500), b=P(gx,0,500);
-    const g=ctx.createLinearGradient(a[0],a[1],b[0],b[1]);
     const al=0.05*(1-Math.abs(gx)/900);
-    g.addColorStop(0,'rgba(51,150,255,0)');
-    g.addColorStop(.5,`rgba(51,150,255,${al})`);
-    g.addColorStop(1,'rgba(51,150,255,0)');
-    ctx.strokeStyle=g; ctx.beginPath();
+    if(useGrad){
+      const g=ctx.createLinearGradient(a[0],a[1],b[0],b[1]);
+      g.addColorStop(0,'rgba(51,150,255,0)');
+      g.addColorStop(.5,`rgba(51,150,255,${al})`);
+      g.addColorStop(1,'rgba(51,150,255,0)');
+      ctx.strokeStyle=g;
+    }else ctx.strokeStyle=`rgba(51,150,255,${(al*0.75).toFixed(3)})`;
+    ctx.beginPath();
     ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
   }
-  for(let gz=-490+off;gz<=490;gz+=70){
+  for(let gz=-490+off;gz<=490;gz+=st){
     const a=P(-780,0,gz), b=P(780,0,gz);
-    const g=ctx.createLinearGradient(a[0],a[1],b[0],b[1]);
     const al=0.05*(1-Math.abs(gz)/620);
-    g.addColorStop(0,'rgba(51,150,255,0)');
-    g.addColorStop(.5,`rgba(51,150,255,${al})`);
-    g.addColorStop(1,'rgba(51,150,255,0)');
-    ctx.strokeStyle=g; ctx.beginPath();
+    if(useGrad){
+      const g=ctx.createLinearGradient(a[0],a[1],b[0],b[1]);
+      g.addColorStop(0,'rgba(51,150,255,0)');
+      g.addColorStop(.5,`rgba(51,150,255,${al})`);
+      g.addColorStop(1,'rgba(51,150,255,0)');
+      ctx.strokeStyle=g;
+    }else ctx.strokeStyle=`rgba(51,150,255,${(al*0.75).toFixed(3)})`;
+    ctx.beginPath();
     ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
   }
   /* cruces titilando sobre el suelo */
-  for(const c of CROSSES){
+  for(let ci=0;ci<Q.cross;ci++){
+    const c=CROSSES[ci];
     const tw=.5+.5*Math.sin(t*c.f+c.ph);
     if(tw<0.25) continue;
     const p=P(c.x,0,c.z), s=4*p[2];
@@ -567,7 +623,7 @@ function drawMap(t,tc,paths,entr){
   }
 
   /* gradiente de profundidad — lejos más oscuro */
-  if(hold>0){
+  if(hold>0 && QCFG[QL].depth){
     ctx.save(); ctx.clip(silh);
     const far=P(0,0,-330), near=P(0,0,330);
     const g=ctx.createLinearGradient(0,far[1],0,near[1]);
@@ -587,7 +643,7 @@ function drawRadar(t,tc,silh){
   const gate=sm((tc-7)/2); if(gate<=0) return;
   const keep=ctx.globalAlpha; ctx.globalAlpha=keep*gate;
   const a = t*0.42;
-  const SEG=56, SPAN=1.25, R=620;
+  const SEG=QCFG[QL].seg, SPAN=1.25, R=620;
   ctx.save(); ctx.clip(silh);
   const wedge=(ang,span,maxAl)=>{
     for(let i=0;i<SEG;i++){
@@ -603,7 +659,7 @@ function drawRadar(t,tc,silh){
     }
   };
   wedge(a,SPAN,0.26);
-  wedge(-t*0.23-1.0,0.9,0.11);   /* segundo barrido, contrarrotante y tenue */
+  if(QCFG[QL].wedge2) wedge(-t*0.23-1.0,0.9,0.11); /* segundo barrido contrarrotante */
   /* borde líder — único uso del naranja junto a los cometas */
   const e0=P(0,0,0), e1=P(Math.cos(a)*R,0,Math.sin(a)*R);
   const g=ctx.createLinearGradient(e0[0],e0[1],e1[0],e1[1]);
@@ -618,6 +674,7 @@ function drawRadar(t,tc,silh){
 
 function drawScan(t,tc,silh){
   /* barrido de ingesta cada 11 s, alternando norte-sur / oeste-este */
+  if(!QCFG[QL].scan) return;
   if(tc<8 || tc>CYC-4) return;
   const k=Math.floor(t/11), ph=(t%11)/3; if(ph>=1) return;
   const al=Math.sin(ph*Math.PI)*0.5;
@@ -690,10 +747,15 @@ function drawNodes(t,tc){
     /* pilar de luz — crece al entrar */
     const h = (24 + nd.w*66 + Math.sin(t*0.6+i*2.1)*10*nd.w)*nIn;
     const b=P(nd.x,0,nd.z), tp=P(nd.x,h,nd.z);
-    const g=ctx.createLinearGradient(b[0],b[1],tp[0],tp[1]);
-    g.addColorStop(0,`rgba(90,200,255,${(0.5*nd.w+0.18)*nIn})`);
-    g.addColorStop(1,'rgba(90,200,255,0)');
-    ctx.strokeStyle=g; ctx.lineWidth=Math.max(1.4, 3.4*nd.w*b[2]);
+    if(QL===2){
+      ctx.strokeStyle=`rgba(90,200,255,${((0.35*nd.w+0.12)*nIn).toFixed(3)})`;
+    }else{
+      const g=ctx.createLinearGradient(b[0],b[1],tp[0],tp[1]);
+      g.addColorStop(0,`rgba(90,200,255,${(0.5*nd.w+0.18)*nIn})`);
+      g.addColorStop(1,'rgba(90,200,255,0)');
+      ctx.strokeStyle=g;
+    }
+    ctx.lineWidth=Math.max(1.4, 3.4*nd.w*b[2]);
     ctx.beginPath(); ctx.moveTo(b[0],b[1]); ctx.lineTo(tp[0],tp[1]); ctx.stroke();
     /* baliza parpadeante en la cima del pilar */
     const blink=Math.max(0,Math.sin(t*2.4+i*1.7));
@@ -791,7 +853,9 @@ const PARTS=[];
   }
 })();
 function drawParticles(t){
-  for(const p of PARTS){
+  const n=QCFG[QL].part;
+  for(let pi=0;pi<n;pi++){
+    const p=PARTS[pi];
     const x=p.x+Math.sin(t*p.f1+p.ph)*26*p.a1;
     const z=p.z+Math.cos(t*p.f2+p.ph*1.7)*20*p.a2;
     const y=p.y+Math.sin(t*p.f2*1.3+p.ph)*9;
@@ -831,6 +895,15 @@ function drawLabels(t,tc){
 let rafQueued=false;
 function frame(now){
   rafQueued=false;
+  govern(now);
+  /* ritmo constante: calidad media/baja y pantallas enormes van a ~30 fps
+     parejos, que se ven más fluidos que 45 fps con tirones */
+  const minF=Math.max(QCFG[QL].minFrame, (W*H>2.1e6?33:0));
+  if(now-lastDraw<minF-1){
+    if(!reduced && !rafQueued){ rafQueued=true; requestAnimationFrame(frame); }
+    return;
+  }
+  lastDraw=now;
   const t=now/1000, tc=t%CYC;
   ctx.clearRect(0,0,W,H);
   camera(t,tc);
