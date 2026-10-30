@@ -2,7 +2,9 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>CJC · Centro de Monitoreo</title>
 <style>
   /* ==========================================================
@@ -10,89 +12,197 @@
      El fondo es un video pregrabado (nada de 3D en vivo): el
      reproductor solo decodifica H.264. Encima van el logo fijo,
      el título y la hora de RD en formato de 12 horas.
+
+     Se acomoda a cualquier ventana (pantalla completa o una
+     división de HikCentral) y se vuelve a acomodar sola si la
+     ventana cambia de tamaño después de cargar:
+       · elige el video que menos se recorta (16:9 o ancho LED)
+       · el video cubre toda la ventana; si para cubrirla habría
+         que recortar más del 10 %, se ve completo y lo que sobra
+         queda del mismo azul del fondo (no se pierde contenido)
+       · la franja del logo y la hora se mide contra el video
+         que se ve, así nunca se descuadra
      ?formato=ancho | 16x9  fuerza la versión del video
-     (por defecto: ancha si la pantalla es más de 2.4 veces más ancha que alta)
+     CSS y JS a propósito "viejos" (sin inset, sin gap en flex,
+     sin =>): los reproductores Android de señalización traen
+     navegadores antiguos.
      ========================================================== */
-  :root{
-    color-scheme: dark;
-    --ink:#020a16;
-    --cyan:#5fe0f2;
-    --orange:#ff7a00;
-    --white:#eef6ff;
-    --soft:rgba(205,228,248,.7);
-    --ui:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
-  }
-  *{margin:0;padding:0;box-sizing:border-box}
-  html,body{width:100%;height:100%;overflow:hidden;background:var(--ink)}
-  body{color:var(--white);font-family:var(--ui);-webkit-font-smoothing:antialiased;cursor:default}
+  html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#020a16}
+  body{color:#eef6ff;font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;cursor:default;
+    -webkit-user-select:none;user-select:none}
   body.idle{cursor:none}
 
-  #fondo{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;background:var(--ink);display:block}
+  /* el rectángulo del video lo calcula el script (cubre la ventana o, si se recortaría mucho, se ve completo) */
+  video{position:fixed;left:0;top:0;width:100%;height:100%;display:block;background:#020a16;object-fit:contain}
 
-  /* franja superior: el video ya trae el degradado oscuro detrás */
-  #franja{position:fixed;left:0;right:0;top:0;height:var(--fr);display:flex;align-items:center;
-    padding:0 var(--m);gap:var(--g);pointer-events:none;z-index:2}
-  #logo{height:calc(var(--fr) * .46);width:auto;display:block;flex:none}
-  #sep{width:2px;height:calc(var(--fr) * .44);background:linear-gradient(180deg,transparent,rgba(95,224,242,.55),transparent);flex:none}
-  #titulo .k{display:flex;align-items:center;gap:.7em;font-weight:700;font-size:calc(var(--fr) * .105);
-    letter-spacing:.24em;text-transform:uppercase;color:var(--cyan);white-space:nowrap}
-  #titulo .k::before{content:'';width:1.9em;height:.2em;background:var(--orange)}
-  #titulo .t{font-weight:800;font-size:calc(var(--fr) * .25);letter-spacing:-.01em;line-height:1.05;margin-top:.16em;white-space:nowrap}
-  #reloj{margin-left:auto;text-align:right;white-space:nowrap}
-  #hora{font-weight:700;font-size:calc(var(--fr) * .3);line-height:1;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
-  #hora .s{font-size:.55em;color:var(--soft);font-weight:600}
-  #hora .ap{font-size:.5em;font-weight:700;color:var(--cyan);margin-left:.25em;letter-spacing:.04em}
-  #fecha{margin-top:.38em;font-weight:600;font-size:calc(var(--fr) * .115);color:var(--soft);letter-spacing:.02em}
-  #fecha::first-letter{text-transform:uppercase}
-
-  /* 16:9 → la franja ocupa el 13,9 % de alto del video; ancho (LED) → 15 % */
-  body{--fr:13.9vh;--m:3.6vw;--g:2.2vw}
-  body.ancho{--fr:15vh;--m:2.6vw;--g:1.6vw}
-  /* pantallas más altas que 16:9 (el video se recorta a los lados): la franja sigue al ancho */
-  @media (max-aspect-ratio: 16/9){ body:not(.ancho){--fr:7.8vw} }
+  /* la franja se dibuja en "pixeles del video" y se escala entera con transform */
+  #franja{position:fixed;left:0;top:0;transform-origin:0 0;-webkit-transform-origin:0 0;pointer-events:none;z-index:2;
+    display:-webkit-box;display:-webkit-flex;display:flex;-webkit-box-align:center;-webkit-align-items:center;align-items:center;
+    box-sizing:border-box;white-space:nowrap;visibility:hidden}
+  #logo{display:block;width:auto;-webkit-flex:none;flex:none}
+  #sep{width:2px;-webkit-flex:none;flex:none;background:-webkit-linear-gradient(top,transparent,rgba(95,224,242,.55),transparent);background:linear-gradient(180deg,transparent,rgba(95,224,242,.55),transparent)}
+  #titulo .k{font-weight:700;letter-spacing:.24em;text-transform:uppercase;color:#5fe0f2}
+  #titulo .k i{display:inline-block;vertical-align:middle;width:1.9em;height:.2em;background:#ff7a00;margin-right:.7em;margin-top:-.15em}
+  #titulo .t{font-weight:800;letter-spacing:-.01em;line-height:1.05}
+  #reloj{margin-left:auto;text-align:right;-webkit-flex:none;flex:none}
+  #hora{font-weight:700;line-height:1;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+  #hora .s{font-size:.55em;color:rgba(205,228,248,.7);font-weight:600}
+  #hora .ap{font-size:.5em;font-weight:700;color:#5fe0f2;margin-left:.25em;letter-spacing:.04em}
+  #fecha{margin-top:.38em;font-weight:600;color:rgba(205,228,248,.7);letter-spacing:.02em}
 </style>
 </head>
 <body>
-<video id="fondo" autoplay muted loop playsinline preload="auto" disablepictureinpicture></video>
+<video id="fondo" autoplay muted loop playsinline webkit-playsinline preload="auto" disablepictureinpicture></video>
 
 <div id="franja">
   <img id="logo" src="media/cjc-logo.png" alt="CJC">
   <div id="sep"></div>
-  <div id="titulo"><div class="k">CJC · En vivo</div><div class="t">Centro de Monitoreo</div></div>
+  <div id="titulo"><div class="k"><i></i>CJC · En vivo</div><div class="t">Centro de Monitoreo</div></div>
   <div id="reloj"><div id="hora"></div><div id="fecha"></div></div>
 </div>
 
 <script>
 (function(){
-  var q = new URLSearchParams(location.search);
-  var f = q.get('formato');
-  var ancho = f ? f === 'ancho' : (innerWidth / innerHeight > 2.4);
-  if (ancho) document.body.classList.add('ancho');
-  var v = document.getElementById('fondo');
-  var base = ancho ? 'media/noc-ancho' : 'media/noc-16x9';
-  v.poster = base + '.jpg';
-  v.src = base + '.mp4';
-  // si la versión ancha no carga, cae a la 16:9 (nunca pantalla negra)
-  v.addEventListener('error', function(){
-    if (v.src.indexOf('noc-ancho') >= 0) { v.poster = 'media/noc-16x9.jpg'; v.src = 'media/noc-16x9.mp4'; intentar(); }
-  });
-  // algunos reproductores no arrancan solos aunque el video esté en silencio: reintento suave
-  var intentar = function(){ var p = v.play(); if (p && p.catch) p.catch(function(){}); };
-  v.addEventListener('canplay', intentar);
+  // ---------------------------------------------------------------- videos
+  // los dos tienen la misma línea de tiempo de 60 s; FR = alto de la franja reservada arriba (px del video)
+  var VIDEOS = {
+    '16x9':  { src: 'media/noc-16x9.mp4',  poster: 'media/noc-16x9.jpg',  w: 1920, h: 1080, fr: 150, m: 70 },
+    'ancho': { src: 'media/noc-ancho.mp4', poster: 'media/noc-ancho.jpg', w: 1920, h: 616,  fr: 92,  m: 50 }
+  };
+  var forzado = (location.search.match(/formato=(ancho|16x9)/) || [])[1];
+  var v = document.getElementById('fondo');          // el video que se está viendo
+  var franja = document.getElementById('franja');
+  var visible = null, pendiente = null, fallaAncho = false;
+
+  function intentar(){ try { var p = v.play(); if (p && p.catch) p.catch(function(){}); } catch (e) {} }
+
+  function tam(){
+    var de = document.documentElement;
+    return { w: window.innerWidth || de.clientWidth, h: window.innerHeight || de.clientHeight };
+  }
+  // el formato que menos recorta (corte en 2,35:1, entre 16:9 y 3,1:1), con margen para que
+  // una ventana que ronda el límite no se quede cambiando de video
+  function elegir(w, h){
+    if (forzado) return forzado;
+    if (fallaAncho) return '16x9';
+    var a = w / h;
+    if (visible === 'ancho') return a < 2.2 ? '16x9' : 'ancho';
+    if (visible === '16x9') return a > 2.5 ? 'ancho' : '16x9';
+    return a > 2.35 ? 'ancho' : '16x9';
+  }
+  function preparar(el){
+    el.muted = true; el.loop = true; el.autoplay = true; el.playsInline = true;
+    el.setAttribute('muted', ''); el.setAttribute('playsinline', ''); el.setAttribute('webkit-playsinline', '');
+    el.preload = 'auto';
+    el.addEventListener('canplay', function(){ if (el === v) intentar(); });
+  }
+  preparar(v);
+  v.addEventListener('error', function(){ if (visible === 'ancho') { fallaAncho = true; visible = '16x9'; v.poster = VIDEOS['16x9'].poster; v.src = VIDEOS['16x9'].src; intentar(); ultimo = ''; acomodar(); } });
+
+  // cambio de formato sin saltos: el video nuevo se carga por detrás, se pone en el mismo
+  // segundo (los dos comparten la línea de tiempo) y recién ahí reemplaza al que se ve
+  function cambiar(clave){
+    if (pendiente) { pendiente.el.removeAttribute('src'); pendiente.el.load(); if (pendiente.el.parentNode) pendiente.el.parentNode.removeChild(pendiente.el); pendiente = null; }
+    var nv = document.createElement('video');
+    preparar(nv);
+    nv.style.visibility = 'hidden';
+    pendiente = { el: nv, clave: clave };
+    var listo = false;
+    function mostrar(){
+      if (listo || !pendiente || pendiente.el !== nv) return;
+      listo = true;
+      var p = nv.play(); if (p && p.catch) p.catch(function(){});
+      var viejo = v;
+      v = nv; visible = clave; pendiente = null;
+      ultimo = ''; acomodar();
+      nv.style.visibility = '';
+      viejo.pause(); viejo.removeAttribute('src'); viejo.load();
+      if (viejo.parentNode) viejo.parentNode.removeChild(viejo);
+    }
+    nv.addEventListener('canplay', function f(){
+      nv.removeEventListener('canplay', f);
+      try { nv.currentTime = (v.currentTime || 0) + 0.3; } catch (e) {}
+      nv.addEventListener('seeked', mostrar);
+      setTimeout(mostrar, 1500);
+    });
+    nv.addEventListener('error', function(){
+      if (pendiente && pendiente.el === nv) { if (clave === 'ancho') fallaAncho = true; if (nv.parentNode) nv.parentNode.removeChild(nv); pendiente = null; }
+    });
+    nv.src = VIDEOS[clave].src;
+    v.parentNode.insertBefore(nv, v);
+  }
+
+  // ---------------------------------------------------------------- acomodo
+  var ultimo = '';
+  function acomodar(){
+    var s = tam();
+    if (!s.w || !s.h) return;
+    var clave = elegir(s.w, s.h);
+    if (!visible) { visible = clave; v.poster = VIDEOS[clave].poster; v.src = VIDEOS[clave].src; intentar(); }
+    else if (clave !== visible && !(pendiente && pendiente.clave === clave)) cambiar(clave);
+    // las medidas salen del video que se está viendo (mientras carga el nuevo, manda el anterior)
+    var mostrado = visible;
+    var firma = s.w + 'x' + s.h + mostrado;
+    if (firma === ultimo) return;
+    ultimo = firma;
+    var V = VIDEOS[mostrado];
+    document.documentElement.setAttribute('data-acomodo', firma);
+    var cubre = Math.max(s.w / V.w, s.h / V.h), cabe = Math.min(s.w / V.w, s.h / V.h);
+    var recorte = 1 - cabe / cubre;
+    var esc = recorte <= 0.10 ? cubre : cabe;
+    var vw = V.w * esc, vh = V.h * esc;
+    var vx = (s.w - vw) / 2, vy = recorte <= 0.10 ? 0 : (s.h - vh) / 2;   // al recortar se pega arriba
+    var vids = document.getElementsByTagName('video');
+    for (var i = 0; i < vids.length; i++) { var e = vids[i].style; e.left = vx + 'px'; e.top = vy + 'px'; e.width = vw + 'px'; e.height = vh + 'px'; }
+    var visX = Math.max(0, vx), visW = Math.min(s.w, vw);
+    var anchoVisible = visW / esc;               // ancho visible del video en px del video
+    var FR = V.fr, M = V.m;
+    // tamaños de la franja en px del video (iguales a los que el video trae dibujados)
+    var logo = document.getElementById('logo'), sep = document.getElementById('sep');
+    var tit = document.getElementById('titulo'), hora = document.getElementById('hora'), fecha = document.getElementById('fecha');
+    logo.style.height = Math.round(FR * 0.46) + 'px';
+    sep.style.height = Math.round(FR * 0.44) + 'px';
+    sep.style.margin = '0 ' + Math.round(FR * 0.24) + 'px';
+    tit.querySelector('.k').style.fontSize = Math.round(FR * 0.105) + 'px';
+    tit.querySelector('.t').style.fontSize = Math.round(FR * 0.25) + 'px';
+    tit.querySelector('.t').style.marginTop = Math.round(FR * 0.04) + 'px';
+    hora.style.fontSize = Math.round(FR * 0.3) + 'px';
+    fecha.style.fontSize = Math.round(FR * 0.115) + 'px';
+    franja.style.padding = '0 ' + M + 'px';
+    franja.style.height = FR + 'px';
+    // si la ventana es angosta (se recortan los lados) y no cabe todo, se achica la franja entera
+    franja.style.width = 'auto';
+    var natural = logo.offsetWidth + sep.offsetWidth + FR * 0.48 + tit.offsetWidth + 30 + document.getElementById('reloj').offsetWidth + 2 * M;
+    var z = Math.min(1, anchoVisible / natural);
+    franja.style.width = (anchoVisible / z) + 'px';
+    var k = esc * z;
+    var tr = 'scale(' + k + ')';
+    franja.style.webkitTransform = tr; franja.style.transform = tr;
+    franja.style.left = visX + 'px'; franja.style.top = vy + 'px';
+    franja.style.visibility = 'visible';
+  }
+  window.addEventListener('resize', acomodar);
+  window.addEventListener('orientationchange', function(){ setTimeout(acomodar, 300); });
+  // algunos reproductores cambian el tamaño de la división sin avisar: se revisa cada segundo
+  setInterval(acomodar, 1000);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ ultimo = ''; acomodar(); });
+  document.getElementById('logo').onload = function(){ ultimo = ''; acomodar(); };
+
+  // ---------------------------------------------------------------- que nunca se quede parado
   setInterval(function(){ if (v.paused) intentar(); }, 5000);
-  // si el reproductor se queda colgado en el mismo cuadro, recarga el video
-  var ultimo = -1, quieto = 0;
+  var tPrev = -1, quieto = 0;
   setInterval(function(){
-    if (v.currentTime === ultimo && !v.paused) { if (++quieto >= 3) { v.load(); intentar(); quieto = 0; } }
-    else quieto = 0;
-    ultimo = v.currentTime;
+    if (!v.paused && v.readyState > 1 && v.currentTime === tPrev) {
+      if (++quieto >= 3) { var t = v.currentTime; v.load(); v.addEventListener('loadedmetadata', function f(){ v.removeEventListener('loadedmetadata', f); try { v.currentTime = t; } catch (e) {} }); intentar(); quieto = 0; }
+    } else quieto = 0;
+    tPrev = v.currentTime;
   }, 4000);
 
-  // ---- hora de República Dominicana (UTC−4 todo el año, sin horario de verano), formato de 12 horas
-  var DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  // ---------------------------------------------------------------- hora de RD (UTC−4 todo el año), 12 horas
+  var DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
   var MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
   var hora = document.getElementById('hora'), fecha = document.getElementById('fecha');
-  var dos = function(n){ return (n < 10 ? '0' : '') + n; };
+  function dos(n){ return (n < 10 ? '0' : '') + n; }
   function tic(){
     var d = new Date(Date.now() - 4 * 3600e3);
     var h = d.getUTCHours(), h12 = h % 12 || 12;
@@ -100,16 +210,31 @@
     fecha.textContent = DIAS[d.getUTCDay()] + ', ' + d.getUTCDate() + ' de ' + MESES[d.getUTCMonth()] + ' de ' + d.getUTCFullYear();
   }
   tic();
-  setTimeout(function(){ tic(); setInterval(tic, 1000); }, 1000 - Date.now() % 1000);   // en el cambio exacto de segundo
+  setTimeout(function(){ tic(); setInterval(tic, 1000); }, 1000 - Date.now() % 1000);
 
-  // clic = pantalla completa; el cursor se oculta en reposo
-  document.addEventListener('click', function(){
+  // ---------------------------------------------------------------- pantalla completa
+  // el navegador solo deja entrar a pantalla completa con un toque/clic/tecla: se intenta al cargar
+  // (los reproductores en modo kiosco lo permiten) y con la primera interacción de cualquier tipo
+  function completa(){
     var e = document.documentElement;
-    if (!document.fullscreenElement && e.requestFullscreen) e.requestFullscreen().catch(function(){});
-    intentar();
+    if (document.fullscreenElement || document.webkitFullscreenElement) return;
+    try {
+      var p = e.requestFullscreen ? e.requestFullscreen({ navigationUI: 'hide' }) : e.webkitRequestFullscreen ? e.webkitRequestFullscreen() : null;
+      if (p && p.catch) p.catch(function(){});
+    } catch (x) {}
+  }
+  completa();
+  ['click', 'touchstart', 'keydown', 'pointerdown'].forEach(function(ev){
+    document.addEventListener(ev, function(){ completa(); intentar(); }, true);
   });
-  var t;
-  document.addEventListener('mousemove', function(){ document.body.classList.remove('idle'); clearTimeout(t); t = setTimeout(function(){ document.body.classList.add('idle'); }, 2500); });
+  document.addEventListener('fullscreenchange', function(){ ultimo = ''; acomodar(); });
+  document.addEventListener('webkitfullscreenchange', function(){ ultimo = ''; acomodar(); });
+
+  // cursor oculto en reposo
+  var tc;
+  document.addEventListener('mousemove', function(){ document.body.className = ''; clearTimeout(tc); tc = setTimeout(function(){ document.body.className = 'idle'; }, 2500); });
+
+  acomodar();
 })();
 </script>
 </body>
